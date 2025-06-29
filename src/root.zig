@@ -72,7 +72,7 @@ test "valid string" {
     const expected = &[_]u32{ 0x0048, 0x0065, 0x006C, 0x006C, 0x006F, 0x0020, 0x0077, 0x006F, 0x0072, 0x006C, 0x0064 };
     const allocator = std.testing.allocator;
 
-    const result = bytesToCodepoints(input, allocator) catch unreachable;
+    const result = try bytesToCodepoints(input, allocator);
     defer allocator.free(result);
 
     try std.testing.expectEqualSlices(u32, expected, result);
@@ -83,7 +83,7 @@ test "overlong sequence" {
     const expected = &[_]u32{ REPLACEMENT, REPLACEMENT };
     const allocator = std.testing.allocator;
 
-    const result = bytesToCodepoints(input, allocator) catch unreachable;
+    const result = try bytesToCodepoints(input, allocator);
     defer allocator.free(result);
 
     try std.testing.expectEqualSlices(u32, expected, result);
@@ -94,7 +94,7 @@ test "truncated 3-byte sequence" {
     const expected = &[_]u32{REPLACEMENT};
     const allocator = std.testing.allocator;
 
-    const result = bytesToCodepoints(input, allocator) catch unreachable;
+    const result = try bytesToCodepoints(input, allocator);
     defer allocator.free(result);
 
     try std.testing.expectEqualSlices(u32, expected, result);
@@ -105,7 +105,7 @@ test "bad continuation" {
     const expected = &[_]u32{ REPLACEMENT, REPLACEMENT };
     const allocator = std.testing.allocator;
 
-    const result = bytesToCodepoints(input, allocator) catch unreachable;
+    const result = try bytesToCodepoints(input, allocator);
     defer allocator.free(result);
 
     try std.testing.expectEqualSlices(u32, expected, result);
@@ -116,7 +116,7 @@ test "U+10FFFF round-trip" {
     const expected = &[_]u32{0x10FFFF};
     const allocator = std.testing.allocator;
 
-    const result = bytesToCodepoints(input, allocator) catch unreachable;
+    const result = try bytesToCodepoints(input, allocator);
     defer allocator.free(result);
 
     try std.testing.expectEqualSlices(u32, expected, result);
