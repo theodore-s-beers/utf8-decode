@@ -2,9 +2,9 @@
 
 const std = @import("std");
 
-pub fn bytesToCodepoints(input: []const u8, allocator: std.mem.Allocator) ![]u32 {
-    var codepoints = try std.ArrayList(u32).initCapacity(allocator, input.len);
-    defer codepoints.deinit();
+pub fn bytesToCodepoints(alloc: std.mem.Allocator, input: []const u8) ![]u32 {
+    var codepoints = try std.ArrayList(u32).initCapacity(alloc, input.len);
+    errdefer codepoints.deinit();
 
     var state: u8 = UTF8_ACCEPT;
     var codepoint: u32 = 0;
@@ -13,16 +13,16 @@ pub fn bytesToCodepoints(input: []const u8, allocator: std.mem.Allocator) ![]u32
         const new_state = decode(&state, &codepoint, b);
 
         if (new_state == UTF8_REJECT) {
-            try codepoints.append(REPLACEMENT);
+            codepoints.appendAssumeCapacity(REPLACEMENT);
             state = UTF8_ACCEPT;
         } else if (new_state == UTF8_ACCEPT) {
-            try codepoints.append(codepoint);
+            codepoints.appendAssumeCapacity(codepoint);
         }
     }
 
     // If we ended in an incomplete sequence, emit replacement
     if (state != UTF8_ACCEPT) {
-        try codepoints.append(REPLACEMENT);
+        codepoints.appendAssumeCapacity(REPLACEMENT);
     }
 
     return codepoints.toOwnedSlice();
@@ -70,10 +70,10 @@ inline fn decode(state: *u8, cp: *u32, byte: u8) u8 {
 test "valid string" {
     const input = "Hello world";
     const expected = &[_]u32{ 0x0048, 0x0065, 0x006C, 0x006C, 0x006F, 0x0020, 0x0077, 0x006F, 0x0072, 0x006C, 0x0064 };
-    const allocator = std.testing.allocator;
+    const alloc = std.testing.allocator;
 
-    const result = try bytesToCodepoints(input, allocator);
-    defer allocator.free(result);
+    const result = try bytesToCodepoints(alloc, input);
+    defer alloc.free(result);
 
     try std.testing.expectEqualSlices(u32, expected, result);
 }
@@ -81,10 +81,10 @@ test "valid string" {
 test "overlong sequence" {
     const input = "\xC0\xAF";
     const expected = &[_]u32{ REPLACEMENT, REPLACEMENT };
-    const allocator = std.testing.allocator;
+    const alloc = std.testing.allocator;
 
-    const result = try bytesToCodepoints(input, allocator);
-    defer allocator.free(result);
+    const result = try bytesToCodepoints(alloc, input);
+    defer alloc.free(result);
 
     try std.testing.expectEqualSlices(u32, expected, result);
 }
@@ -92,10 +92,10 @@ test "overlong sequence" {
 test "truncated 3-byte sequence" {
     const input = "\xE2\x82";
     const expected = &[_]u32{REPLACEMENT};
-    const allocator = std.testing.allocator;
+    const alloc = std.testing.allocator;
 
-    const result = try bytesToCodepoints(input, allocator);
-    defer allocator.free(result);
+    const result = try bytesToCodepoints(alloc, input);
+    defer alloc.free(result);
 
     try std.testing.expectEqualSlices(u32, expected, result);
 }
@@ -103,10 +103,10 @@ test "truncated 3-byte sequence" {
 test "bad continuation" {
     const input = "\xE2\x28\xA1";
     const expected = &[_]u32{ REPLACEMENT, REPLACEMENT };
-    const allocator = std.testing.allocator;
+    const alloc = std.testing.allocator;
 
-    const result = try bytesToCodepoints(input, allocator);
-    defer allocator.free(result);
+    const result = try bytesToCodepoints(alloc, input);
+    defer alloc.free(result);
 
     try std.testing.expectEqualSlices(u32, expected, result);
 }
@@ -114,10 +114,10 @@ test "bad continuation" {
 test "U+10FFFF round-trip" {
     const input = "\xF4\x8F\xBF\xBF";
     const expected = &[_]u32{0x10FFFF};
-    const allocator = std.testing.allocator;
+    const alloc = std.testing.allocator;
 
-    const result = try bytesToCodepoints(input, allocator);
-    defer allocator.free(result);
+    const result = try bytesToCodepoints(alloc, input);
+    defer alloc.free(result);
 
     try std.testing.expectEqualSlices(u32, expected, result);
 }
