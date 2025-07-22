@@ -2,6 +2,48 @@
 
 const std = @import("std");
 
+pub const Utf8Iterator = struct {
+    input: []const u8,
+    index: usize,
+    state: u8,
+    codepoint: u32,
+
+    pub fn init(input: []const u8) Utf8Iterator {
+        return Utf8Iterator{
+            .input = input,
+            .index = 0,
+            .state = UTF8_ACCEPT,
+            .codepoint = 0,
+        };
+    }
+
+    pub fn next(self: *Utf8Iterator) ?u32 {
+        while (self.index < self.input.len) {
+            const byte = self.input[self.index];
+            self.index += 1;
+
+            const new_state = decode(&self.state, &self.codepoint, byte);
+
+            if (new_state == UTF8_REJECT) {
+                self.state = UTF8_ACCEPT;
+                return REPLACEMENT;
+            }
+
+            if (new_state == UTF8_ACCEPT) return self.codepoint;
+
+            // Continue if in the middle of a multi-byte sequence
+        }
+
+        // If we ended in an incomplete sequence, emit replacement
+        if (self.state != UTF8_ACCEPT) {
+            self.state = UTF8_ACCEPT;
+            return REPLACEMENT;
+        }
+
+        return null; // Exhausted
+    }
+};
+
 pub fn bytesToCodepoints(input: []const u8, buffer: *std.ArrayList(u32)) !void {
     buffer.clearRetainingCapacity();
     try buffer.ensureTotalCapacity(input.len);
